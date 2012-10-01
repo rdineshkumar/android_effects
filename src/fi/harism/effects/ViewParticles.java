@@ -19,6 +19,8 @@ package fi.harism.effects;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.util.Vector;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -41,17 +43,20 @@ import android.widget.Toast;
 public class ViewParticles extends GLSurfaceView implements
 		GLSurfaceView.Renderer {
 
+	private FloatBuffer mBufferLine;
 	private ByteBuffer mBufferQuad;
 	private Context mContext;
 	private float mEmitterDir;
 	private float mEmitterDirSource;
 	private float mEmitterDirTarget;
 	private PointF mEmitterPos = new PointF();
-	private PointF mEmitterPosSource = new PointF();
-	private PointF mEmitterPosTarget = new PointF();
+	private PointF mEmitterPosCtrl0 = new PointF();
+	private PointF mEmitterPosCtrl1 = new PointF();
+	private PointF mEmitterPosCtrl2 = new PointF();
 	private float[] mMatrixProjection = new float[16];
 	private Vector<Particle> mParticles = new Vector<Particle>();
 	private boolean[] mShaderCompilerSupport = new boolean[1];
+	private EffectsShader mShaderEmitter = new EffectsShader();
 	private EffectsShader mShaderParticle = new EffectsShader();
 	private Worker mWorker = new Worker();
 
@@ -64,6 +69,13 @@ public class ViewParticles extends GLSurfaceView implements
 		final byte[] QUAD = { -1, 1, -1, -1, 1, 1, 1, -1 };
 		mBufferQuad = ByteBuffer.allocateDirect(8);
 		mBufferQuad.put(QUAD).position(0);
+
+		ByteBuffer buffer = ByteBuffer.allocateDirect(4 * 20);
+		mBufferLine = buffer.order(ByteOrder.nativeOrder()).asFloatBuffer();
+		for (int i = 0; i < 20; ++i) {
+			mBufferLine.put(i / 19f);
+		}
+		mBufferLine.position(0);
 
 		setEGLContextClientVersion(2);
 		setRenderer(this);
@@ -97,32 +109,65 @@ public class ViewParticles extends GLSurfaceView implements
 
 		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
 		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		GLES20.glDisable(GLES20.GL_BLEND);
+
+		// Render emitter movement lines.
+		{
+			mShaderEmitter.useProgram();
+			int uProjectionM = mShaderEmitter.getHandle("uProjectionM");
+			int uEmitterCtrl0 = mShaderEmitter.getHandle("uEmitterCtrl0");
+			int uEmitterCtrl1 = mShaderEmitter.getHandle("uEmitterCtrl1");
+			int uEmitterCtrl2 = mShaderEmitter.getHandle("uEmitterCtrl2");
+			int aPosition = mShaderEmitter.getHandle("aPosition");
+
+			GLES20.glUniformMatrix4fv(uProjectionM, 1, false,
+					mMatrixProjection, 0);
+
+			GLES20.glUniform2f(uEmitterCtrl0, mEmitterPosCtrl0.x,
+					mEmitterPosCtrl0.y);
+			GLES20.glUniform2f(uEmitterCtrl1, mEmitterPosCtrl1.x,
+					mEmitterPosCtrl1.y);
+			GLES20.glUniform2f(uEmitterCtrl2, mEmitterPosCtrl2.x,
+					mEmitterPosCtrl2.y);
+
+			GLES20.glVertexAttribPointer(aPosition, 1, GLES20.GL_FLOAT, false,
+					0, mBufferLine);
+			GLES20.glEnableVertexAttribArray(aPosition);
+
+			GLES20.glLineWidth(7);
+			GLES20.glDrawArrays(GLES20.GL_LINES, 0, 20);
+		}
+
 		GLES20.glEnable(GLES20.GL_BLEND);
 		GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
-		mShaderParticle.useProgram();
-		int uPosition = mShaderParticle.getHandle("uPosition");
-		int uProjectionM = mShaderParticle.getHandle("uProjectionM");
-		int uColor = mShaderParticle.getHandle("uColor");
-		int aPosition = mShaderParticle.getHandle("aPosition");
+		// Render particles.
+		{
+			mShaderParticle.useProgram();
+			int uPosition = mShaderParticle.getHandle("uPosition");
+			int uProjectionM = mShaderParticle.getHandle("uProjectionM");
+			int uColor = mShaderParticle.getHandle("uColor");
+			int aPosition = mShaderParticle.getHandle("aPosition");
 
-		GLES20.glVertexAttribPointer(aPosition, 2, GLES20.GL_BYTE, false, 0,
-				mBufferQuad);
-		GLES20.glEnableVertexAttribArray(aPosition);
+			GLES20.glVertexAttribPointer(aPosition, 2, GLES20.GL_BYTE, false,
+					0, mBufferQuad);
+			GLES20.glEnableVertexAttribArray(aPosition);
 
-		GLES20.glUniformMatrix4fv(uProjectionM, 1, false, mMatrixProjection, 0);
+			GLES20.glUniformMatrix4fv(uProjectionM, 1, false,
+					mMatrixProjection, 0);
 
-		for (int i = 0; i < mParticles.size(); ++i) {
-			float col = 1f;
-			if (i < 1000) {
-				col = i / 1000f;
+			for (int i = 0; i < mParticles.size(); ++i) {
+				float col = 1f;
+				if (i < 1000) {
+					col = i / 1000f;
+				}
+				GLES20.glUniform3f(uColor, col, col, col);
+
+				Particle p = mParticles.get(i);
+				GLES20.glUniform4f(uPosition, p.mPosition[0], p.mPosition[1],
+						0f, 0.03f);
+				GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 			}
-			GLES20.glUniform3f(uColor, col, col, col);
-
-			Particle p = mParticles.get(i);
-			GLES20.glUniform4f(uPosition, p.mPosition[0], p.mPosition[1], 0f,
-					0.03f);
-			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 		}
 
 		queueEvent(mWorker);
@@ -149,6 +194,9 @@ public class ViewParticles extends GLSurfaceView implements
 
 		try {
 			String vertexSource, fragmentSource;
+			vertexSource = loadRawString(R.raw.emitter_vs);
+			fragmentSource = loadRawString(R.raw.emitter_fs);
+			mShaderEmitter.setProgram(vertexSource, fragmentSource);
 			vertexSource = loadRawString(R.raw.particle_vs);
 			fragmentSource = loadRawString(R.raw.particle_fs);
 			mShaderParticle.setProgram(vertexSource, fragmentSource);
@@ -192,9 +240,11 @@ public class ViewParticles extends GLSurfaceView implements
 			// First update emitter position and direction.
 			long time = SystemClock.uptimeMillis();
 			if (time - mRenderTime > 4000) {
-				mEmitterPosSource.set(mEmitterPosTarget);
-				mEmitterPosTarget.x = (float) (Math.random() * 2 - 1);
-				mEmitterPosTarget.y = (float) (Math.random() * 2 - 1);
+				mEmitterPosCtrl0.set(mEmitterPosCtrl2);
+				mEmitterPosCtrl1.x = (float) (Math.random() * 2 - 1);
+				mEmitterPosCtrl1.y = (float) (Math.random() * 2 - 1);
+				mEmitterPosCtrl2.x = (float) (Math.random() * 2 - 1);
+				mEmitterPosCtrl2.y = (float) (Math.random() * 2 - 1);
 				mEmitterDirSource = mEmitterDirTarget;
 				mEmitterDirTarget = (float) (Math.random() * 720);
 				mRenderTime = time;
@@ -203,10 +253,12 @@ public class ViewParticles extends GLSurfaceView implements
 			float t = (time - mRenderTime) / 4000f;
 			t = t * t * (3 - 2 * t);
 
-			mEmitterPos.x = mEmitterPosSource.x
-					+ (mEmitterPosTarget.x - mEmitterPosSource.x) * t;
-			mEmitterPos.y = mEmitterPosSource.y
-					+ (mEmitterPosTarget.y - mEmitterPosSource.y) * t;
+			mEmitterPos.x = (1 - t) * (1 - t) * mEmitterPosCtrl0.x + 2
+					* (1 - t) * t * mEmitterPosCtrl1.x + t * t
+					* mEmitterPosCtrl2.x;
+			mEmitterPos.y = (1 - t) * (1 - t) * mEmitterPosCtrl0.y + 2
+					* (1 - t) * t * mEmitterPosCtrl1.y + t * t
+					* mEmitterPosCtrl2.y;
 			mEmitterDir = mEmitterDirSource
 					+ (mEmitterDirTarget - mEmitterDirSource) * t;
 
