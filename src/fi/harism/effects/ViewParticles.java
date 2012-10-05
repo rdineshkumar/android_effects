@@ -31,8 +31,6 @@ import android.graphics.PointF;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.util.FloatMath;
 import android.widget.Toast;
@@ -209,7 +207,7 @@ public class ViewParticles extends GLSurfaceView implements
 	 * Shows Toast on screen with given message.
 	 */
 	private void showError(final String errorMsg) {
-		new Handler(Looper.getMainLooper()).post(new Runnable() {
+		post(new Runnable() {
 			@Override
 			public void run() {
 				Toast.makeText(mContext, errorMsg, Toast.LENGTH_LONG).show();

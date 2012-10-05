@@ -51,7 +51,7 @@ public class EffectsActivity extends Activity implements ActionBar.TabListener {
 		tab = actionBar.newTab();
 		tab.setTabListener(this);
 		tab.setText(R.string.tab_textures);
-		tab.setTag(new ViewParticles(this));
+		tab.setTag(new ViewTextures(this));
 		actionBar.addTab(tab);
 
 	}
