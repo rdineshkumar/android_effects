@@ -103,9 +103,12 @@ public class ViewTextures extends GLSurfaceView implements
 
 		final float[] matrix = new float[9];
 		mMatrixBackground.getValues(matrix);
+		transpose(matrix);
 		GLES20.glUniformMatrix3fv(mShaderTextures.getHandle("uBackgroundM"), 1,
 				false, matrix, 0);
+
 		mMatrixForegroundAnim.getValues(matrix);
+		transpose(matrix);
 		GLES20.glUniformMatrix3fv(mShaderTextures.getHandle("uForegroundM"), 1,
 				false, matrix, 0);
 
@@ -152,7 +155,7 @@ public class ViewTextures extends GLSurfaceView implements
 		paint.setColor(0xFF2040A0);
 		paint.setTextSize(32);
 		setTextureText("world ", paint, mTextureIds[0], mMatrixBackground);
-		mMatrixBackground.postScale(10, 10f * height / width);
+		mMatrixBackground.postScale(8, 8f * height / width);
 		mMatrixBackground.preRotate(-35);
 
 		// Generate foreground texture.
@@ -220,6 +223,19 @@ public class ViewTextures extends GLSurfaceView implements
 				Toast.makeText(mContext, errorMsg, Toast.LENGTH_LONG).show();
 			}
 		});
+	}
+
+	/**
+	 * Transpose 3x3 matrix in place.
+	 */
+	private void transpose(float[] matrix) {
+		for (int i = 0; i < 2; ++i) {
+			for (int j = i + 1; j < 3; ++j) {
+				float tmp = matrix[j * 3 + i];
+				matrix[j * 3 + i] = matrix[i * 3 + j];
+				matrix[i * 3 + j] = tmp;
+			}
+		}
 	}
 
 	/**

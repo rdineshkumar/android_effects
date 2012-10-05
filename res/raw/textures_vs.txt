@@ -10,6 +10,6 @@ varying vec2 vTexPosForeground;
 void main() {
 	gl_Position = vec4(aPosition, 0.0, 1.0);
 	
-	vTexPosBackground = (transpose(uBackgroundM) * vec3(aPosition, 1.0)).xy;
-	vTexPosForeground = (transpose(uForegroundM) * vec3(aPosition, 1.0)).xy;
+	vTexPosBackground = (uBackgroundM * vec3(aPosition, 1.0)).xy;
+	vTexPosForeground = (uForegroundM * vec3(aPosition, 1.0)).xy;
 }
