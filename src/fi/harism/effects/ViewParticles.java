@@ -16,8 +16,6 @@
 
 package fi.harism.effects;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -29,21 +27,17 @@ import javax.microedition.khronos.opengles.GL10;
 import android.content.Context;
 import android.graphics.PointF;
 import android.opengl.GLES20;
-import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.os.SystemClock;
 import android.util.FloatMath;
-import android.widget.Toast;
 
 /**
  * Particles Renderer and GLSurfaceView.
  */
-public class ViewParticles extends GLSurfaceView implements
-		GLSurfaceView.Renderer {
+public class ViewParticles extends ViewBase {
 
 	private FloatBuffer mBufferLine;
 	private ByteBuffer mBufferQuad;
-	private Context mContext;
 	private float mEmitterDir;
 	private float mEmitterDirSource;
 	private float mEmitterDirTarget;
@@ -61,8 +55,6 @@ public class ViewParticles extends GLSurfaceView implements
 	public ViewParticles(Context context) {
 		super(context);
 
-		mContext = context;
-
 		// Full view quad buffer.
 		final byte[] QUAD = { -1, 1, -1, -1, 1, 1, 1, -1 };
 		mBufferQuad = ByteBuffer.allocateDirect(8);
@@ -79,20 +71,6 @@ public class ViewParticles extends GLSurfaceView implements
 		setRenderer(this);
 		setRenderMode(RENDERMODE_WHEN_DIRTY);
 		queueEvent(mWorker);
-	}
-
-	/**
-	 * Loads String from raw resources with given id.
-	 */
-	private String loadRawString(int rawId) throws Exception {
-		InputStream is = mContext.getResources().openRawResource(rawId);
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		byte[] buf = new byte[1024];
-		int len;
-		while ((len = is.read(buf)) != -1) {
-			baos.write(buf, 0, len);
-		}
-		return baos.toString();
 	}
 
 	@Override
@@ -185,7 +163,7 @@ public class ViewParticles extends GLSurfaceView implements
 
 		// If not, show user an error message and return immediately.
 		if (!mShaderCompilerSupport[0]) {
-			String msg = mContext.getString(R.string.error_shader_compiler);
+			String msg = getContext().getString(R.string.error_shader_compiler);
 			showError(msg);
 			return;
 		}
@@ -201,18 +179,6 @@ public class ViewParticles extends GLSurfaceView implements
 		} catch (Exception ex) {
 			showError(ex.getMessage());
 		}
-	}
-
-	/**
-	 * Shows Toast on screen with given message.
-	 */
-	private void showError(final String errorMsg) {
-		post(new Runnable() {
-			@Override
-			public void run() {
-				Toast.makeText(mContext, errorMsg, Toast.LENGTH_LONG).show();
-			}
-		});
 	}
 
 	/**
