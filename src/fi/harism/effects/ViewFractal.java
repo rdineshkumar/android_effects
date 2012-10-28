@@ -34,12 +34,10 @@ public class ViewFractal extends ViewBase {
 	private ByteBuffer mBufferQuad;
 	private Matrix mMatrixMove = new Matrix();
 	private Matrix mMatrixView = new Matrix();
-
 	private SparseArray<PointF> mPointersDown = new SparseArray<PointF>();
 	private SparseArray<PointF> mPointersMove = new SparseArray<PointF>();
 	private boolean mShaderCompilerSupport[] = new boolean[1];
 	private EffectsShader mShaderFractal = new EffectsShader();
-
 	private int mWidth, mHeight;
 
 	public ViewFractal(Context context) {
@@ -161,7 +159,6 @@ public class ViewFractal extends ViewBase {
 				float lenMove = FloatMath.sqrt(dx2 * dx2 + dy2 * dy2);
 
 				float scale = lenOrig / lenMove;
-				mMatrixMove.setScale(scale, scale);
 
 				double angleOrig = Math.acos(dx1 / lenOrig);
 				angleOrig = dy1 > 0 ? angleOrig : -angleOrig;
@@ -169,10 +166,15 @@ public class ViewFractal extends ViewBase {
 				angleMove = dy2 > 0 ? angleMove : -angleMove;
 				double angle = angleMove - angleOrig;
 
+				float dx = (ptDown1.x - ptMove1.x) * 2 / mWidth;
+				float dy = (ptMove1.y - ptDown1.y) * 2 / mHeight;
+
 				float px = (ptMove1.x / mWidth) * 2 - 1;
 				float py = (ptMove1.y / mHeight) * 2 - 1;
 
+				mMatrixMove.setTranslate(dx, dy);
 				mMatrixMove.preRotate((float) Math.toDegrees(angle), px, -py);
+				mMatrixMove.preScale(scale, scale, px, -py);
 			}
 
 			requestRender();
