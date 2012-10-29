@@ -34,8 +34,7 @@ public class ViewFractal extends ViewBase {
 	private ByteBuffer mBufferQuad;
 	private Matrix mMatrixMove = new Matrix();
 	private Matrix mMatrixView = new Matrix();
-	private SparseArray<PointF> mPointersDown = new SparseArray<PointF>();
-	private SparseArray<PointF> mPointersMove = new SparseArray<PointF>();
+	private SparseArray<StructPointer> mPointers = new SparseArray<StructPointer>();
 	private boolean mShaderCompilerSupport[] = new boolean[1];
 	private EffectsShader mShaderFractal = new EffectsShader();
 	private int mWidth, mHeight;
@@ -115,41 +114,43 @@ public class ViewFractal extends ViewBase {
 		case MotionEvent.ACTION_DOWN:
 		case MotionEvent.ACTION_POINTER_DOWN: {
 			int ai = me.getActionIndex();
-			PointF pt = new PointF(me.getX(ai), me.getY(ai));
-			mPointersDown.put(me.getPointerId(ai), pt);
-			pt = new PointF(pt.x, pt.y);
-			mPointersMove.put(me.getPointerId(ai), pt);
+			StructPointer pointer = new StructPointer();
+			pointer.mPositionDown.set(me.getX(ai), me.getY(ai));
+			mPointers.put(me.getPointerId(ai), pointer);
 			return true;
 		}
 		case MotionEvent.ACTION_UP:
 		case MotionEvent.ACTION_POINTER_UP: {
 			int pid = me.getPointerId(me.getActionIndex());
-			mPointersDown.remove(pid);
-			mPointersMove.remove(pid);
+			mPointers.remove(pid);
+			for (int i = 0; i < mPointers.size(); ++i) {
+				StructPointer pointer = mPointers.valueAt(i);
+				pointer.mPositionDown.set(pointer.mPositionMove);
+			}
 			mMatrixView.preConcat(mMatrixMove);
 			mMatrixMove.reset();
 			return true;
 		}
 		case MotionEvent.ACTION_MOVE: {
 			for (int i = 0; i < me.getPointerCount(); ++i) {
-				PointF pt = mPointersMove.get(me.getPointerId(i));
-				pt.set(me.getX(i), me.getY(i));
+				StructPointer pointer = mPointers.get(me.getPointerId(i));
+				pointer.mPositionMove.set(me.getX(i), me.getY(i));
 			}
 
-			if (mPointersDown.size() == 1) {
-				PointF ptDown = mPointersDown.valueAt(0);
-				PointF ptMove = mPointersMove.valueAt(0);
+			if (mPointers.size() == 1) {
+				PointF ptDown = mPointers.valueAt(0).mPositionDown;
+				PointF ptMove = mPointers.valueAt(0).mPositionMove;
 
 				float dx = (ptDown.x - ptMove.x) * 2 / mWidth;
 				float dy = (ptMove.y - ptDown.y) * 2 / mHeight;
 
 				mMatrixMove.setTranslate(dx, dy);
 			}
-			if (mPointersDown.size() == 2) {
-				PointF ptDown1 = mPointersDown.valueAt(0);
-				PointF ptMove1 = mPointersMove.valueAt(0);
-				PointF ptDown2 = mPointersDown.valueAt(1);
-				PointF ptMove2 = mPointersMove.valueAt(1);
+			if (mPointers.size() == 2) {
+				PointF ptDown1 = mPointers.valueAt(0).mPositionDown;
+				PointF ptMove1 = mPointers.valueAt(0).mPositionMove;
+				PointF ptDown2 = mPointers.valueAt(1).mPositionDown;
+				PointF ptMove2 = mPointers.valueAt(1).mPositionMove;
 
 				float dx1 = ptDown1.x - ptDown2.x;
 				float dy1 = ptDown1.y - ptDown2.y;
@@ -196,6 +197,14 @@ public class ViewFractal extends ViewBase {
 				matrix[i * 3 + j] = tmp;
 			}
 		}
+	}
+
+	/**
+	 * Private pointer position holder class.
+	 */
+	private class StructPointer {
+		PointF mPositionDown = new PointF();
+		PointF mPositionMove = new PointF();
 	}
 
 }
