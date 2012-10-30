@@ -12,6 +12,7 @@
 
     <!-- Tab strings -->
     <string name="tab_rubber">RUBBER</string>
+    <string name="tab_splines">SPLINES</string>
     <string name="tab_fractal">FRACTAL</string>
     <string name="tab_blob">BLOB</string>
     <string name="tab_particles">PARTICLES</string>
