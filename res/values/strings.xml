@@ -11,6 +11,7 @@
     <string name="error_shader_compiler">OpenGL error; GLSL shader compiler not supported.</string>
 
     <!-- Tab strings -->
+    <string name="tab_rubber">RUBBER</string>
     <string name="tab_fractal">FRACTAL</string>
     <string name="tab_blob">BLOB</string>
     <string name="tab_particles">PARTICLES</string>
