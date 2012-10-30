@@ -7,7 +7,12 @@ tabs.
 
 Currently implemented:
 
+* Rubber, a Bezier surface cube consisting of roughly 2400 vertices.
+* Splines, renders 100 Bezier curves each consisting of 80 vertices.
+* Fractal, GLSL based Mandelbrot fractal with touch support.
+* Blob, an elastic form generated using three control points.
 * Particles, a 10000 particle system which demonstrates emitting and simple solving.
+* Textures, transformed textures using one GLSL shader only.
 
 License
 =======
