@@ -19,6 +19,7 @@ package fi.harism.effects;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -31,30 +32,28 @@ import android.os.SystemClock;
 public class ViewRubber extends ViewBase {
 
 	private static final int COUNT_EDGE = 20;
-	private static final int COUNT_VERTICES = 4 * COUNT_EDGE;
+	private static final int COUNT_INDICES = 6 * (COUNT_EDGE - 1)
+			* (COUNT_EDGE - 1);
 
 	private static final float[][][] FACE_DATA = {
-			{ { .3f, .5f, 1f }, { 0, 1, 2, 3 } },
-			{ { .3f, .5f, 1f }, { 10, 6, 9, 11 } },
-			{ { 1f, .5f, .3f }, { 4, 2, 6, 5 } },
-			{ { 1f, .5f, .3f }, { 7, 9, 1, 8 } },
-			{ { .5f, 1f, .3f }, { 12, 7, 13, 0 } },
-			{ { .5f, 1f, .3f }, { 3, 14, 5, 15 } } };
-	private static final int[][] FACE_LINES = { { 0, 8, 2 }, { 0, 9, 1 },
-			{ 2, 10, 3 }, { 1, 11, 3 }, { 2, 12, 6 }, { 3, 13, 7 },
-			{ 6, 14, 7 }, { 4, 15, 0 }, { 5, 16, 1 }, { 4, 17, 5 },
-			{ 6, 18, 4 }, { 7, 19, 5 }, { 4, 18, 6 }, { 6, 12, 2 },
-			{ 1, 16, 5 }, { 5, 19, 7 } };
+			{ { .3f, .5f, 1f }, { 0, 8, 2, 9, 20, 10, 1, 11, 3 } },
+			{ { .3f, .5f, 1f }, { 6, 18, 4, 14, 21, 17, 7, 19, 5 } },
+			{ { 1f, .5f, .3f }, { 4, 15, 0, 17, 22, 9, 5, 16, 1 } },
+			{ { 1f, .5f, .3f }, { 2, 12, 6, 10, 23, 14, 3, 13, 7 } },
+			{ { .5f, 1f, .3f }, { 4, 18, 6, 15, 24, 12, 0, 8, 2 } },
+			{ { .5f, 1f, .3f }, { 1, 11, 3, 16, 25, 13, 5, 19, 7 } } };
 	private static final float[][] FACE_VERTICES = { { -1, 1, 1 },
 			{ -1, -1, 1 }, { 1, 1, 1 }, { 1, -1, 1 }, { -1, 1, -1 },
 			{ -1, -1, -1 }, { 1, 1, -1 }, { 1, -1, -1 }, { 0, 1, 1 },
 			{ -1, 0, 1 }, { 1, 0, 1 }, { 0, -1, 1 }, { 1, 1, 0 }, { 1, -1, 0 },
 			{ 1, 0, -1 }, { -1, 1, 0 }, { -1, -1, 0 }, { -1, 0, -1 },
-			{ 0, 1, -1 }, { 0, -1, -1 } };
-	private static final float[][] FACE_VERTICES_SOURCE = new float[20][];
-	private static final float[][] FACE_VERTICES_TARGET = new float[20][];
+			{ 0, 1, -1 }, { 0, -1, -1 }, { 0, 0, 1 }, { 0, 0, -1 },
+			{ -1, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 } };
+	private static final float[][] FACE_VERTICES_SOURCE = new float[FACE_VERTICES.length][];
+	private static final float[][] FACE_VERTICES_TARGET = new float[FACE_VERTICES.length][];
 
-	private FloatBuffer mBufferFace;
+	private ShortBuffer mBufferIndices;
+	private FloatBuffer mBufferVertices;
 	private float[] mEyeSource = { 0, 0, 5 };
 	private float[] mEyeTarget = { 0, 0, 5 };
 
@@ -67,19 +66,33 @@ public class ViewRubber extends ViewBase {
 	public ViewRubber(Context context) {
 		super(context);
 
-		ByteBuffer buffer = ByteBuffer.allocateDirect(4 * 2 * COUNT_VERTICES);
-		mBufferFace = buffer.order(ByteOrder.nativeOrder()).asFloatBuffer();
+		ByteBuffer buffer = ByteBuffer.allocateDirect(4 * 2 * COUNT_EDGE
+				* COUNT_EDGE);
+		mBufferVertices = buffer.order(ByteOrder.nativeOrder()).asFloatBuffer();
 		for (int i = 0; i < COUNT_EDGE; ++i) {
-			float t = (float) i / (COUNT_EDGE - 1);
-			mBufferFace.put(0).put(t).put(1).put(t);
+			float y = (float) i / (COUNT_EDGE - 1);
+			for (int j = 0; j < COUNT_EDGE; ++j) {
+				float x = (float) j / (COUNT_EDGE - 1);
+				mBufferVertices.put(x).put(y);
+			}
 		}
-		for (int i = 0; i < COUNT_EDGE; ++i) {
-			float t = (float) i / (COUNT_EDGE - 1);
-			mBufferFace.put(2).put(t).put(3).put(t);
-		}
-		mBufferFace.position(0);
+		mBufferVertices.position(0);
 
-		for (int i = 0; i < 20; ++i) {
+		buffer = ByteBuffer.allocateDirect(2 * COUNT_INDICES);
+		mBufferIndices = buffer.order(ByteOrder.nativeOrder()).asShortBuffer();
+		for (int i = 0; i < COUNT_EDGE - 1; ++i) {
+			for (int j = 0; j < COUNT_EDGE - 1; ++j) {
+				short index = (short) (j * COUNT_EDGE + i);
+				mBufferIndices.put(index).put((short) (index + COUNT_EDGE))
+						.put((short) (index + 1));
+				mBufferIndices.put((short) (index + COUNT_EDGE))
+						.put((short) (index + COUNT_EDGE + 1))
+						.put((short) (index + 1));
+			}
+		}
+		mBufferIndices.position(0);
+
+		for (int i = 0; i < FACE_VERTICES.length; ++i) {
 			FACE_VERTICES_SOURCE[i] = new float[3];
 			FACE_VERTICES_TARGET[i] = new float[3];
 		}
@@ -103,9 +116,10 @@ public class ViewRubber extends ViewBase {
 		if (time - mRenderTime > 2000) {
 			for (int i = 0; i < 3; ++i) {
 				mEyeSource[i] = mEyeTarget[i];
-				mEyeTarget[i] = (float) (Math.random() * 10 - 5);
+				mEyeTarget[i] = (float) (Math.random() * 4 - 2);
+				mEyeTarget[i] += mEyeTarget[i] > 0 ? 3 : -3;
 			}
-			for (int i = 0; i < 20; ++i) {
+			for (int i = 0; i < FACE_VERTICES.length; ++i) {
 				for (int j = 0; j < 3; ++j) {
 					FACE_VERTICES_SOURCE[i][j] = FACE_VERTICES_TARGET[i][j];
 					FACE_VERTICES_TARGET[i][j] = FACE_VERTICES[i][j]
@@ -138,32 +152,27 @@ public class ViewRubber extends ViewBase {
 				false, mMatrixProjection, 0);
 
 		GLES20.glVertexAttribPointer(mShaderRubber.getHandle("aPosition"), 2,
-				GLES20.GL_FLOAT, false, 0, mBufferFace);
+				GLES20.GL_FLOAT, false, 0, mBufferVertices);
 		GLES20.glEnableVertexAttribArray(mShaderRubber.getHandle("aPosition"));
 
 		for (float[][] face : FACE_DATA) {
 			GLES20.glUniform3fv(mShaderRubber.getHandle("uColor"), 1, face[0],
 					0);
 
-			final float[] lines = new float[36];
-			for (int i = 0; i < 4; ++i) {
-				int[] indices = FACE_LINES[(int) face[1][i]];
+			final float[] lines = new float[27];
+			for (int i = 0; i < 9; ++i) {
+				float[] verticesSource = FACE_VERTICES_SOURCE[(int) face[1][i]];
+				float[] verticesTarget = FACE_VERTICES_TARGET[(int) face[1][i]];
 				for (int j = 0; j < 3; ++j) {
-					float[] verticesSource = FACE_VERTICES_SOURCE[indices[j]];
-					float[] verticesTarget = FACE_VERTICES_TARGET[indices[j]];
-					for (int k = 0; k < 3; ++k) {
-						float value = verticesSource[k]
-								+ (verticesTarget[k] - verticesSource[k]) * t;
-						lines[i * 9 + j * 3 + k] = value;
-					}
+					float value = verticesSource[j]
+							+ (verticesTarget[j] - verticesSource[j]) * t;
+					lines[i * 3 + j] = value;
 				}
 			}
 
-			GLES20.glUniform3fv(mShaderRubber.getHandle("uLine0"), 3, lines, 0);
-			GLES20.glUniform3fv(mShaderRubber.getHandle("uLine1"), 3, lines, 9);
-			GLES20.glUniform3fv(mShaderRubber.getHandle("uLine2"), 3, lines, 18);
-			GLES20.glUniform3fv(mShaderRubber.getHandle("uLine3"), 3, lines, 27);
-			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, COUNT_VERTICES);
+			GLES20.glUniform3fv(mShaderRubber.getHandle("uCtrl"), 9, lines, 0);
+			GLES20.glDrawElements(GLES20.GL_TRIANGLES, COUNT_INDICES,
+					GLES20.GL_UNSIGNED_SHORT, mBufferIndices);
 		}
 
 	}
